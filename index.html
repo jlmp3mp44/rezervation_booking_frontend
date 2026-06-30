@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HOROVOD HUB</title>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="apple-touch-icon" href="assets/favicon.png">
+  <link rel="stylesheet" href="style.css">
+  <!-- FontAwesome for modern design icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Backend API client (Supabase-compatible shim → Spring Boot) -->
+  <script>window.HOROVOD_API_URL = window.HOROVOD_API_URL || 'http://localhost:8080/api';</script>
+  <script src="backend-shim.js"></script>
+
+</head>
+<body>
+
+  <!-- Rotating artistic gradient circle representing 'Horovod' round dance -->
+  <div class="horovod-circle"></div>
+
+  <!-- Header / Navigation -->
+  <header>
+    <div class="nav-container">
+      <div class="logo" id="logo-btn" onclick="switchView('calendar')">
+        <img src="assets/logo.png" alt="HOROVOD">
+        <span>HOROVOD HUB</span>
+      </div>
+      <nav class="nav-links" id="header-nav-links">
+        <button class="nav-btn" id="nav-book" onclick="handleBookNavClick()">
+          <i class="fa-regular fa-calendar-plus"></i> Забронювати
+        </button>
+        <button class="nav-btn active" id="nav-calendar" onclick="switchView('calendar')">
+          <i class="fa-regular fa-calendar-days"></i> Календар простору
+        </button>
+        <button class="nav-btn" id="nav-admin" onclick="switchView('admin')" style="display: none;">
+          <i class="fa-solid fa-sliders"></i> Панель адміна
+          <span id="pending-badge" style="display: none; background: var(--primary); color: #000; border-radius: 50%; width: 18px; height: 18px; font-size: 0.65rem; display: flex; align-items: center; justify-content: center; font-weight: 700; margin-left: 5px;">0</span>
+        </button>
+      </nav>
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <!-- User account profile panel -->
+        <div id="user-profile-nav" style="display: none; align-items: center; gap: 0.65rem; border-left: 1px solid var(--border-color); padding-left: 0.75rem; margin-left: 0.25rem;">
+          <span id="user-email-display" style="font-size: 0.8rem; color: var(--text-secondary); font-family: var(--font-sans); font-weight: 500;"></span>
+          <button class="btn btn-outline" id="toggle-sidebar-btn" onclick="toggleSidebar()" style="padding: 0.35rem 0.65rem; position: relative; transition: var(--transition-smooth);">
+            <i class="fa-regular fa-bell"></i>
+            <span id="feed-unread-badge" style="display: none; position: absolute; top: -6px; right: -6px; background: var(--brand-red); color: white; border-radius: 50%; width: 15px; height: 15px; font-size: 0.6rem; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 1px solid white;">0</span>
+          </button>
+          <button class="btn btn-outline" style="padding: 0.35rem 0.65rem; font-size: 0.7rem; text-transform: uppercase;" onclick="userLogout()">
+            <i class="fa-solid fa-right-from-bracket"></i> Вихід
+          </button>
+        </div>
+        <!-- Guest Login Button -->
+        <button class="btn btn-primary" id="nav-login-btn" onclick="openLoginModal()" style="display: none; padding: 0.35rem 0.75rem;">
+          <i class="fa-solid fa-arrow-right-to-bracket"></i> Вхід
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Layout -->
+  <main class="with-sidebar">
+    
+    <!-- View Sections -->
+    <div class="content-area">
+      
+      <!-- CLIENT BOOKING VIEW -->
+      <section id="view-book" class="view-section">
+        <div class="card" id="mobile-booking-card-wrapper">
+          <h2 class="card-title">
+            <i class="fa-solid fa-music" style="color: var(--brand-orange);"></i>
+            Забронювати час у кімнаті
+          </h2>
+          <p class="subtitle" id="booking-form-subtitle">Спрощена форма бронювання для спільноти ХОРОВОД. Увага: бронювання на сьогодні неможливі, лише починаючи з завтрашнього дня.</p>
+          
+          <form id="booking-form" onsubmit="handleBookingSubmit(event)">
+            <div class="form-row two-col">
+              <div class="form-group">
+                <label for="user-name">Ваше Ім'я *</label>
+                <input type="text" id="user-name" required placeholder="e.g. Саша Коваль">
+              </div>
+              <div class="form-group">
+                <label for="contact-email">Електронна пошта *</label>
+                <!-- Pre-filled and readonly from login session -->
+                <input type="email" id="contact-email" required readonly style="background: rgba(0,0,0,0.05); color: var(--text-secondary); cursor: not-allowed;">
+              </div>
+            </div>
+
+            <div class="form-row two-col">
+              <div class="form-group">
+                <label for="booking-date">Дата *</label>
+                <input type="date" id="booking-date" required>
+              </div>
+              <div class="form-group">
+                <label for="booking-type">Тип бронювання *</label>
+                <select id="booking-type" required>
+                  <option value="репетиція">Репетиція</option>
+                  <option value="чилл">Чилл</option>
+                  <option value="робота">Робота</option>
+                  <option value="заниматься самому">Займатися самому</option>
+                  <option value="інше">Інше</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Native select controls for time selection -->
+            <div class="form-row two-col">
+              <div class="form-group">
+                <label for="start-time">Час початку *</label>
+                <select id="start-time" required onchange="updateEndTimeOptions()">
+                  <!-- Generated dynamically in app.js -->
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="end-time">Час завершення *</label>
+                <select id="end-time" required>
+                  <!-- Generated dynamically in app.js -->
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="booking-notes">Опис активності / Примітки</label>
+              <textarea id="booking-notes" rows="4" placeholder="Напишіть, що ви плануєте робити чи яке обладнання вам знадобиться..."></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+              <i class="fa-solid fa-check"></i> Надіслати запит на бронювання
+            </button>
+          </form>
+        </div>
+
+        <!-- Personal Cabinet Container for Logged In User -->
+        <div class="card" style="margin-top: 2rem;" id="user-cabinet-card">
+          <h2 class="card-title">
+            <i class="fa-solid fa-headphones" style="color: var(--brand-blue-dark);"></i>
+            Ваш кабінет: Мої бронювання
+          </h2>
+          <p class="subtitle" id="cabinet-user-email" style="font-size: 0.85rem; font-family: var(--font-mono); margin-top: -0.75rem; margin-bottom: 1.5rem;">Логін: ...</p>
+          
+
+
+          <div class="requests-list" id="user-bookings-list">
+            <!-- Loaded dynamically in app.js -->
+          </div>
+        </div>
+
+        <!-- News Feed / Announcements Card -->
+        <div class="card" style="margin-top: 2rem;" id="news-feed-card">
+          <h2 class="card-title">
+            <i class="fa-solid fa-newspaper" style="color: var(--brand-blue-dark);"></i>
+            Стрічка новин та анонси
+          </h2>
+          <p class="subtitle">Важливі новини простору, анонси та звіти про виправлення несправностей.</p>
+          <div id="news-feed-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+            <!-- Rendered dynamically in app.js -->
+          </div>
+        </div>
+
+        <!-- Active Issues Card (Visible to all residents) -->
+        <div class="card" style="margin-top: 2rem;" id="active-issues-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+            <h2 class="card-title" style="margin-bottom: 0;">
+              <i class="fa-solid fa-triangle-exclamation" style="color: var(--brand-red);"></i>
+              Стан обладнання у просторі
+            </h2>
+            <button class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.75rem; border-color: var(--brand-red); color: var(--brand-red);" onclick="openIssueModal()">
+              <i class="fa-solid fa-circle-exclamation"></i> Повідомити про проблему
+            </button>
+          </div>
+          <p class="subtitle" style="margin-top: -0.5rem; margin-bottom: 1rem;">Активні повідомлення про несправності або проблеми зі звуком/апаратурою.</p>
+          <div class="issues-list" id="active-issues-list">
+            <!-- Loaded dynamically in app.js -->
+          </div>
+        </div>
+      </section>
+
+      <!-- VISUAL CALENDAR VIEW -->
+      <section id="view-calendar" class="view-section active">
+        <div class="card" style="padding: 1.5rem;">
+          
+          <!-- Active Issues Banner -->
+          <div id="active-issues-banner" onclick="toggleSidebar()" style="display: none; cursor: pointer; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; background: var(--bg-card-hover); border: var(--border-thin); border-radius: var(--radius-sm); font-size: 0.8rem; margin-bottom: 0.75rem; transition: var(--transition-smooth); box-shadow: var(--shadow-hard-sm); border-left: 6px solid var(--brand-red) !important; animation: fadeIn 0.35s ease-out;">
+            <span style="font-weight: 800; color: var(--brand-red); display: flex; align-items: center; gap: 0.35rem; white-space: nowrap;">
+              <i class="fa-solid fa-triangle-exclamation" style="animation: pulse 1.8s infinite;"></i> НЕСПРАВНОСТІ:
+            </span>
+            <span id="active-issues-banner-text" style="color: var(--text-secondary); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0;">Завантаження...</span>
+          </div>
+
+          <!-- Latest Activity Banner -->
+          <div id="latest-activity-banner" onclick="toggleSidebar()" style="display: none; cursor: pointer; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; background: var(--bg-card-hover); border: var(--border-thin); border-radius: var(--radius-sm); font-size: 0.8rem; margin-bottom: 1.25rem; transition: var(--transition-smooth); box-shadow: var(--shadow-hard-sm); animation: fadeIn 0.35s ease-out;">
+            <span style="font-weight: 800; color: var(--brand-orange); display: flex; align-items: center; gap: 0.35rem; white-space: nowrap;">
+              <i class="fa-solid fa-bullhorn" style="animation: pulse 1.8s infinite;"></i> ОСТАННЯ АКТИВНІСТЬ:
+            </span>
+            <span id="latest-activity-text" style="color: var(--text-secondary); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0;">Завантаження...</span>
+          </div>
+
+          <div class="calendar-controls">
+            <h2 class="calendar-title-text" id="calendar-month-year">Червень 2026</h2>
+            <div class="calendar-nav-buttons">
+              <button class="btn btn-outline" onclick="changeWeek(-1)">
+                <i class="fa-solid fa-chevron-left"></i> Минулий тиждень
+              </button>
+              <button class="btn btn-outline" onclick="goToday()">Сьогодні</button>
+              <button class="btn btn-outline" onclick="changeWeek(1)">
+                Наступний тиждень <i class="fa-solid fa-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+
+          </div>
+
+          <!-- Weekly Schedule Grid Wrapper for mobile scroll -->
+          <div class="weekly-calendar-wrapper">
+            <div class="weekly-calendar-grid" id="weekly-grid">
+              <!-- Headers and grid cells rendered dynamically by app.js -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ADMIN DASHBOARD VIEW -->
+      <section id="view-admin" class="view-section">
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+            <h2 class="card-title" style="margin-bottom: 0;">
+              <i class="fa-solid fa-user-shield" style="color: var(--brand-blue-dark);"></i>
+              Керування запитами
+            </h2>
+            <button class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;" onclick="adminLogout()">
+              <i class="fa-solid fa-right-from-bracket"></i> Вихід з адміна
+            </button>
+          </div>
+          <p class="subtitle">Розгляд заявок від спільноти. Підтвердження додає сесію на календар. Буде надіслано повідомлення обом сторонам у разі підтвердження чи відхилення.</p>
+          
+          <div class="requests-list" id="pending-requests-list">
+            <!-- Pending requests populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Admin Issues Card -->
+        <div class="card" style="margin-top: 2rem;" id="admin-issues-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+            <h2 class="card-title" style="margin-bottom: 0;">
+              <i class="fa-solid fa-screwdriver-wrench" style="color: var(--brand-orange);"></i>
+              Контроль несправностей обладнання
+            </h2>
+            <button class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.75rem; border-color: var(--brand-orange); color: var(--brand-orange);" onclick="openIssueModal()">
+              <i class="fa-solid fa-circle-plus"></i> Додати несправність
+            </button>
+          </div>
+          <p class="subtitle" style="margin-top: -0.5rem; margin-bottom: 1rem;">Перелік скарг від резидентів. Вирішені проблеми можна зняти з обліку кнопкою "Вирішено".</p>
+          <div class="issues-list" id="admin-issues-list">
+            <!-- Loaded dynamically in app.js -->
+          </div>
+        </div>
+
+        <!-- CONTACTS & ANNOUNCEMENTS SECTION -->
+        <div class="card" style="margin-top: 2rem;">
+          <h2 class="card-title">
+            <i class="fa-solid fa-address-book" style="color: var(--brand-red);"></i>
+            База резидентів та Анонси
+          </h2>
+          <p class="subtitle">База накопичується автоматично з усіх бронювань. Ви можете створювати односторонні масові оголошення для всієї спільноти.</p>
+          
+          <div class="form-row two-col">
+            <!-- Left: Contact Database -->
+            <div>
+              <h3 style="font-size: 1.1rem; margin-bottom: 1rem; color: var(--text-primary);">
+                <i class="fa-solid fa-users"></i> Резиденти у базі
+              </h3>
+              <div style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-primary);">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left;">
+                  <thead>
+                    <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.02); color: var(--text-secondary); font-family: var(--font-sans); text-transform: uppercase;">
+                      <th style="padding: 0.6rem 0.8rem;">Ім'я</th>
+                      <th style="padding: 0.6rem 0.8rem;">Email</th>
+                      <th style="padding: 0.6rem 0.8rem; text-align: center;">Бронювань</th>
+                    </tr>
+                  </thead>
+                  <tbody id="contacts-table-body">
+                    <!-- Loaded dynamically in app.js -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Right: Mass Announcement Form -->
+            <div>
+              <h3 style="font-size: 1.1rem; margin-bottom: 1rem; color: var(--text-primary);">
+                <i class="fa-solid fa-bullhorn"></i> Масова розсилка
+              </h3>
+              <form id="announcement-form" onsubmit="handleSendAnnouncement(event)">
+                <div class="form-group">
+                  <label for="announcement-subject">Тема анонсу</label>
+                  <input type="text" id="announcement-subject" required placeholder="e.g. Важливі зміни у роботі простору">
+                </div>
+                <div class="form-group">
+                  <label for="announcement-text">Текст оголошення</label>
+                  <textarea id="announcement-text" rows="4" required placeholder="Напишіть текст анонсу для резидентів..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                  <i class="fa-solid fa-paper-plane"></i> Надіслати всім резидентам
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 2rem;">
+          <h2 class="card-title">
+            <i class="fa-solid fa-clock-rotate-left" style="color: var(--text-secondary);"></i>
+            Історія запитів спільноти
+          </h2>
+          <div class="requests-list" id="all-requests-list">
+            <!-- All requests with statuses populated dynamically -->
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Notification / Message Log Sidebar (Slide-Out Drawer) -->
+    <aside class="sidebar-panel card" id="sidebar-drawer">
+      <button class="modal-close" onclick="toggleSidebar()" style="top: 1rem; right: 1rem;">&times;</button>
+      <h3 class="card-title" style="font-size: 1.2rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+        <i class="fa-solid fa-clock-rotate-left" style="color: var(--brand-blue-dark);"></i>
+        Стрічка активності
+      </h3>
+      <p class="subtitle" style="font-size: 0.8rem; margin-bottom: 1.25rem; color: var(--text-secondary);">
+        Останні події, запити та зміни статусів бронювання.
+      </p>
+      <div class="logs-container" id="logs-container">
+        <!-- Log items added here dynamically -->
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- Detail Dialog / Modal -->
+  <div class="modal-overlay" id="event-modal">
+    <div class="modal-content" style="max-height: 90vh; overflow-y: auto;">
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+      <div class="modal-header">
+        <h3 id="modal-band-name" style="font-size: 1.5rem; color: var(--text-primary);">Олександр</h3>
+        <span class="badge" id="modal-status-badge">Підтверджено</span>
+      </div>
+      <div class="modal-detail-row">
+        <div class="modal-detail-label">Тип активності</div>
+        <div class="modal-detail-value" id="modal-type-badge" style="font-weight: 600;">Репетиція</div>
+      </div>
+      <div class="modal-detail-row">
+        <div class="modal-detail-label">Час бронювання</div>
+        <div class="modal-detail-value" id="modal-time">П'ятниця, 5 Чер @ 14:00 - 17:00</div>
+      </div>
+      <div class="modal-detail-row">
+        <div class="modal-detail-label">Контакт резидентки(-а)</div>
+        <div class="modal-detail-value" id="modal-contact">User (user@horovod.art)</div>
+      </div>
+      <div class="modal-detail-row">
+        <div class="modal-detail-label">Примітки та опис</div>
+        <div class="modal-detail-value" id="modal-notes" style="font-style: italic;">Немає приміток.</div>
+      </div>
+
+      <!-- Admin Approve/Reject buttons for pending bookings -->
+      <div id="modal-admin-review-container" style="display: none; margin-top: 1.5rem; gap: 0.5rem; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+        <button id="btn-approve-modal" class="btn btn-success" style="flex: 1;" onclick="approveFromModal()">
+          <i class="fa-solid fa-check"></i> Підтвердити
+        </button>
+        <button id="btn-reject-modal" class="btn btn-danger" style="flex: 1;" onclick="rejectFromModal()">
+          <i class="fa-solid fa-xmark"></i> Відхилити
+        </button>
+      </div>
+
+      <!-- Client withdraw button for pending bookings (no reason needed) -->
+      <div id="modal-withdraw-container" style="display: none; margin-top: 1.5rem; gap: 0.5rem; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+        <button id="btn-withdraw-modal" class="btn btn-outline" style="flex: 1;" onclick="withdrawFromModal()">
+          <i class="fa-solid fa-rotate-left"></i> Відкликати запит
+        </button>
+      </div>
+
+      <!-- Action buttons for Cancellation flow (approved bookings only) -->
+      <div id="modal-actions-container" style="margin-top: 1.5rem; display: flex; gap: 0.5rem; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+        <button id="btn-cancel-resident" class="btn btn-outline" style="flex: 1;" onclick="openCancelFlow('client')">
+          <i class="fa-solid fa-user-xmark"></i> Скасувати (Резидент)
+        </button>
+        <button id="btn-cancel-organizer" class="btn btn-danger" style="flex: 1;" onclick="openCancelFlow('admin')">
+          <i class="fa-solid fa-ban"></i> Скасувати (Організатор)
+        </button>
+      </div>
+
+      <!-- Cancellation form inside modal (hidden by default) -->
+      <div id="cancel-form-container" style="display: none; margin-top: 1.25rem; background: rgba(0, 0, 0, 0.02); padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+        <h4 style="font-size: 0.9rem; margin-bottom: 0.75rem; color: var(--danger);" id="cancel-form-title">Скасування бронювання</h4>
+        
+        <div class="form-group" id="cancel-email-group" style="display: none;">
+          <label for="cancel-confirm-email">Підтвердьте вашу пошту *</label>
+          <input type="email" id="cancel-confirm-email" placeholder="e.g. user@gmail.com">
+        </div>
+        
+        <div class="form-group">
+          <label for="cancel-reason">Вкажіть причину скасування *</label>
+          <textarea id="cancel-reason" rows="2" placeholder="Напишіть причину скасування..."></textarea>
+        </div>
+        
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn btn-danger" style="flex: 1; padding: 0.5rem; font-size: 0.85rem;" onclick="submitCancellation()">Підтвердити</button>
+          <button class="btn btn-outline" style="flex: 1; padding: 0.5rem; font-size: 0.85rem;" onclick="closeCancelFlow()">Назад</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Conflict Suggestion Modal -->
+  <div class="modal-overlay" id="conflict-modal">
+    <div class="modal-content" style="max-width: 480px; border-color: var(--danger); box-shadow: 0 4px 15px rgba(178, 83, 83, 0.05);">
+      <button class="modal-close" onclick="closeConflictModal()">&times;</button>
+      <div class="modal-header">
+        <h3 style="font-size: 1.4rem; color: var(--danger); display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fa-solid fa-triangle-exclamation"></i> Час уже зайнятий
+        </h3>
+      </div>
+      <div class="modal-detail-row">
+        <div class="modal-detail-value" id="conflict-modal-msg" style="line-height: 1.5; margin-bottom: 1.25rem; font-size: 0.95rem;">
+          У цей час вже проходить інша репетиція.
+        </div>
+      </div>
+      <div id="conflict-action-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <!-- Filled dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Global Login Modal -->
+  <div class="modal-overlay" id="login-modal">
+    <div class="modal-content login-modal-content">
+      <div class="modal-header" style="border-bottom: none; margin-bottom: 1.25rem; padding-bottom: 0; text-align: center;">
+        <img src="assets/logo.png" alt="HOROVOD" style="height: 60px; width: auto; display: block; margin: 0 auto 1rem; mix-blend-mode: multiply;">
+        <h3 style="font-size: 1.45rem; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.02em; font-family: var(--font-display);">Вхід у HOROVOD HUB</h3>
+        <p style="font-size: 0.85rem; color: var(--text-primary); margin-top: 0.35rem; line-height: 1.4; font-family: var(--font-sans); font-weight: 500;">Введіть ваш email для доступу до системи бронювання та власного кабінету.</p>
+      </div>
+      
+      <div class="form-group" id="login-email-group" style="margin-bottom: 1rem;">
+        <label for="login-email">Ваш Email *</label>
+        <input type="email" id="login-email" placeholder="наприклад: resident@gmail.com" required oninput="checkEmailForAdmin()">
+      </div>
+
+      <!-- Password container (hidden by default, reveals if email is horovod.info@gmail.com) -->
+      <div class="form-group" id="login-password-group" style="display: none; animation: slideDown 0.25s ease-out; margin-bottom: 1rem;">
+        <label for="login-password">Пароль адміністратора *</label>
+        <input type="password" id="login-password" placeholder="Введіть пароль адміна">
+      </div>
+
+      <!-- OTP container (hidden by default, reveals after requesting OTP) -->
+      <div class="form-group" id="login-otp-group" style="display: none; animation: slideDown 0.25s ease-out; text-align: center; margin-bottom: 1rem;">
+        <label for="login-otp" style="display: block; text-align: left; margin-bottom: 0.5rem;">Код підтвердження з пошти *</label>
+        <input type="text" id="login-otp" class="login-otp-input" placeholder="Введіть код" maxlength="6">
+        <p class="login-otp-helper">Код відправлено. Будь ласка, перевірте вашу скриньку.</p>
+      </div>
+      
+      <button class="btn btn-primary btn-login-submit" id="login-submit-btn" style="width: 100%; margin-top: 0.5rem;" onclick="submitLogin()">Увійти</button>
+
+      <div id="login-change-email-container" style="display: none; text-align: center; margin-top: 1rem;">
+        <a href="#" onclick="showLoginEmailField(event)" class="login-change-email-btn">Змінити Email</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Success Confirmation Modal -->
+  <div class="modal-overlay" id="success-modal">
+    <div class="modal-content" style="max-width: 400px; text-align: center;">
+      <button class="modal-close" onclick="closeSuccessModal()">&times;</button>
+      <div style="display: inline-flex; align-items: center; justify-content: center; width: 70px; height: 70px; border: var(--border-thick); background: var(--brand-green); box-shadow: 4px 4px 0px #222222; margin-bottom: 1.25rem; font-size: 2.25rem; color: #222222;">
+        <i class="fa-solid fa-check"></i>
+      </div>
+      <h3 id="success-modal-title" style="font-family: var(--font-display); font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">Запит надіслано!</h3>
+      <p id="success-modal-msg" style="font-size: 0.95rem; line-height: 1.5; color: var(--text-secondary); margin-bottom: 1.5rem;">
+        Ваш запит на бронювання успішно надіслано. Координатор перевірить його найближчим часом.
+      </p>
+      <button class="btn btn-primary" style="width: 100%;" onclick="closeSuccessModal()">ОК</button>
+    </div>
+  </div>
+
+  <!-- Cancellation Success Modal -->
+  <div class="modal-overlay" id="cancel-success-modal">
+    <div class="modal-content" style="max-width: 400px; text-align: center;">
+      <button class="modal-close" onclick="closeCancelSuccessModal()">&times;</button>
+      <div style="display: inline-flex; align-items: center; justify-content: center; width: 70px; height: 70px; border: var(--border-thick); background: var(--brand-red); box-shadow: 4px 4px 0px #222222; margin-bottom: 1.25rem; font-size: 2.25rem; color: #222222;">
+        <i class="fa-solid fa-xmark"></i>
+      </div>
+      <h3 style="font-family: var(--font-display); font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">Скасовано!</h3>
+      <p style="font-size: 0.95rem; line-height: 1.5; color: var(--text-secondary); margin-bottom: 1.5rem;" id="cancel-success-msg">
+        Бронювання успішно скасовано та видалено з календаря.
+      </p>
+      <button class="btn btn-primary" style="width: 100%;" onclick="closeCancelSuccessModal()">ОК</button>
+    </div>
+  </div>
+
+  <!-- Report Issue Modal -->
+  <div class="modal-overlay" id="issue-modal">
+    <div class="modal-content" style="max-width: 440px;">
+      <button class="modal-close" onclick="closeIssueModal()">&times;</button>
+      <h3 style="font-family: var(--font-display); font-weight: 900; text-transform: uppercase; margin-bottom: 1.25rem;">
+        <i class="fa-solid fa-triangle-exclamation" style="color: var(--brand-red);"></i> Повідомити про несправність
+      </h3>
+      <form id="issue-form" onsubmit="handleIssueSubmit(event)">
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label for="issue-title">Що зламалося / несправне? *</label>
+          <input type="text" id="issue-title" required placeholder="Наприклад: Гітарний комбік Fender">
+        </div>
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label for="issue-category">Категорія несправності *</label>
+          <select id="issue-category" required style="width: 100%; height: 42px; padding: 0.5rem; border: var(--border-thin); font-family: var(--font-sans); border-radius: var(--radius-sm);">
+            <option value="sound">Звук / Мікрофони</option>
+            <option value="instruments">Інструменти / Апаратура</option>
+            <option value="cables">Комутація / Кабелі</option>
+            <option value="other">Інше</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+          <label for="issue-description">Детальний опис проблеми *</label>
+          <textarea id="issue-description" required rows="3" placeholder="Опишіть несправність детальніше (наприклад: рипить лівий канал, тріщить кабель)..." style="width: 100%; padding: 0.5rem; border: var(--border-thin); font-family: var(--font-sans); border-radius: var(--radius-sm); box-sizing: border-box;"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+          <i class="fa-solid fa-paper-plane"></i> Надіслати звіт
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Resolve Issue Modal -->
+  <div class="modal-overlay" id="resolve-issue-modal">
+    <div class="modal-content" style="max-width: 480px;">
+      <button class="modal-close" onclick="closeResolveIssueModal()">&times;</button>
+      <div class="modal-header">
+        <h3 style="font-family: var(--font-display); font-weight: 900; text-transform: uppercase; margin-bottom: 1rem;">
+          <i class="fa-solid fa-wrench" style="color: var(--brand-yellow);"></i> Вирішення проблеми
+        </h3>
+      </div>
+      <form id="resolve-issue-form" onsubmit="submitResolveIssue(event)">
+        <input type="hidden" id="resolve-issue-id">
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label for="resolve-how" style="color: var(--secondary-hover); font-size: 0.8rem; margin-bottom: 0.25rem;">Як буде вирішено проблему? *</label>
+          <textarea id="resolve-how" rows="3" required placeholder="Опишіть план ремонту чи заміни..." style="width: 100%; padding: 0.5rem; border: var(--border-thin); font-family: var(--font-sans); border-radius: var(--radius-sm); box-sizing: border-box;"></textarea>
+        </div>
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label for="resolve-when" style="color: var(--secondary-hover); font-size: 0.8rem; margin-bottom: 0.25rem;">Коли буде вирішено? *</label>
+          <input type="text" id="resolve-when" required placeholder="Наприклад: сьогодні до 18:00, або субота ранок" style="width: 100%; padding: 0.5rem; border: var(--border-thin); font-family: var(--font-sans); border-radius: var(--radius-sm); box-sizing: border-box;">
+        </div>
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+          <label for="resolve-msg" style="color: var(--secondary-hover); font-size: 0.8rem; margin-bottom: 0.25rem;">Повідомлення репортеру (чернетка) *</label>
+          <textarea id="resolve-msg" rows="3" required style="width: 100%; padding: 0.5rem; border: var(--border-thin); font-family: var(--font-sans); border-radius: var(--radius-sm); box-sizing: border-box;"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+          <i class="fa-solid fa-check"></i> Підтвердити вирішення
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Activity Detail Modal -->
+  <div class="modal-overlay" id="activity-detail-modal">
+    <div class="modal-content" style="max-height: 90vh; overflow-y: auto; max-width: 480px;">
+      <button class="modal-close" onclick="closeActivityDetailModal()">&times;</button>
+      <div class="modal-header">
+        <h3 id="activity-detail-title" style="font-family: var(--font-display); font-weight: 900; text-transform: uppercase; margin-bottom: 0.5rem; font-size: 1.3rem;">Деталі активності</h3>
+      </div>
+      <div class="modal-body" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 1rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span id="activity-detail-badge" class="log-badge" style="font-size: 0.72rem; padding: 0.25rem 0.6rem;"></span>
+          <span id="activity-detail-time" style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);"></span>
+        </div>
+        <div id="activity-detail-body" style="font-size: 0.85rem; line-height: 1.55; color: var(--text-primary); background: var(--bg-primary); padding: 1.25rem; border: var(--border-thin); border-radius: var(--radius-sm); white-space: pre-line; word-break: break-word;">
+          <!-- Content goes here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Booking Form Modal (Desktop) -->
+  <div class="modal-overlay" id="booking-modal-overlay">
+    <div class="modal-content" id="booking-modal-content" style="max-width: 480px; padding: 2rem;">
+      <button class="modal-close" onclick="closeBookingModal()">&times;</button>
+      <!-- Form moves here dynamically on desktop -->
+    </div>
+  </div>
+
+  <!-- Floating Action Button (FAB) for Reporting Issues -->
+  <button id="floating-report-issue-btn" class="fab-report-issue" onclick="openIssueModal()" title="Повідомити про проблему">
+    <i class="fa-solid fa-screwdriver-wrench"></i>
+  </button>
+
+  <!-- Sidebar Drawer Overlay -->
+  <div class="drawer-overlay" id="drawer-overlay" onclick="toggleSidebar()"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
