@@ -179,6 +179,15 @@
         return ok({ session: session });
       },
 
+      signInWithOAuth: async function (_a) {
+        // Since this is a shim, we can simulate standard OAuth redirect behavior.
+        // In a real Spring Boot setup, the backend might handle standard OAuth2 flows.
+        // Or if real Supabase is used, this shim won't be called.
+        // We will just do a simple window.location.href or toast since we are mocking.
+        window.location.href = API_BASE + '/auth/oauth/' + (_a.provider || 'google');
+        return new Promise(function() {}); // Never resolves, because of redirect
+      },
+
       signInWithPassword: async function (_a) {
         const email = _a.email;
         const password = _a.password;

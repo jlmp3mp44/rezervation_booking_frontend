@@ -151,6 +151,26 @@ const Modals = () => {
   };
 
   // 3. Login Flow
+  const handleGoogleLogin = async () => {
+      if (isSupabaseEnabled && supabaseClient) {
+          try {
+              const { error } = await supabaseClient.auth.signInWithOAuth({
+                  provider: 'google',
+                  options: {
+                      redirectTo: window.location.origin
+                  }
+              });
+              if (error) {
+                  showToast('Помилка входу через Google: ' + error.message, 'error');
+              }
+          } catch (err) {
+              showToast('Помилка входу.', 'error');
+          }
+      } else {
+          showToast('Google авторизація тимчасово недоступна.', 'warning');
+      }
+  };
+
   const handleLogin = async (e) => {
       e.preventDefault();
       const em = loginData.email.toLowerCase().trim();
@@ -436,6 +456,15 @@ const Modals = () => {
             </div>
 
             <form onSubmit={handleLogin}>
+                <button
+                    type="button"
+                    className="btn btn-outline"
+                    style={{ width: '100%', marginBottom: '1rem', background: '#fff', color: '#000', border: '2px solid #000', fontWeight: 'bold' }}
+                    onClick={handleGoogleLogin}
+                >
+                    <i className="fa-brands fa-google"></i> LOGIN WITH GOOGLE
+                </button>
+                <div style={{ textAlign: 'center', marginBottom: '1rem', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>АБО</div>
                 <div className="form-group" style={{ marginBottom: '1rem' }}>
                     <label>Ваш Email *</label>
                     <input type="email" required placeholder="наприклад: resident@gmail.com" value={loginData.email} onChange={e => setLoginData(p => ({...p, email: e.target.value}))} />
