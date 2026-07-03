@@ -439,16 +439,24 @@ const Modals = () => {
                 <button
                     type="button"
                     className="btn btn-outline"
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
                     onClick={async () => {
                         try {
                             const redirect_uri = window.location.origin + '/auth/google';
-                            const response = await fetch(`/api/auth/google/url?redirect_uri=${encodeURIComponent(redirect_uri)}`);
-                            if (response.ok) {
+                            // Note: during local dev, proxying might be needed if backend runs on a different port.
+                            // We are assuming the backend API is served at /api/auth/google/url.
+                            const backendUrl = window.HOROVOD_API_URL || '';
+                            const response = await fetch(`${backendUrl}/api/auth/google/url?redirect_uri=${encodeURIComponent(redirect_uri)}`);
+
+                            // Check if response is JSON, because a redirect to index.html means endpoint is missing
+                            const contentType = response.headers.get("content-type");
+                            if (response.ok && contentType && contentType.includes("application/json")) {
                                 const data = await response.json();
                                 if (data.url) {
                                     window.location.href = data.url;
                                 }
+                            } else {
+                                console.error('Error fetching Google auth URL: Invalid response', await response.text());
                             }
                         } catch (err) {
                             console.error('Error fetching Google auth URL:', err);
