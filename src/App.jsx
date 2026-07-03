@@ -6,6 +6,7 @@ import CalendarView from './components/CalendarView';
 import BookingView from './components/BookingView';
 import AdminView from './components/AdminView';
 import Modals from './components/Modals';
+import GoogleCallback from './components/GoogleCallback';
 import './index.css';
 
 const MainLayout = () => {
@@ -41,6 +42,10 @@ const MainLayout = () => {
 };
 
 function App() {
+  if (window.location.pathname.startsWith('/auth/google')) {
+    return <GoogleCallback />;
+  }
+
   return (
     <AppProvider>
       <MainLayout />

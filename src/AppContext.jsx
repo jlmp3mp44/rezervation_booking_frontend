@@ -151,8 +151,11 @@ export const AppProvider = ({ children }) => {
       let loggedIn = localStorage.getItem('user_logged_in') === 'true';
       let email = localStorage.getItem('user_email');
       let isAdmin = localStorage.getItem('admin_logged_in') === 'true';
+      let hasAccessToken = !!localStorage.getItem('access_token');
 
-      if (isSupabaseEnabled && supabaseClient) {
+      if (hasAccessToken) {
+          loggedIn = true;
+      } else if (isSupabaseEnabled && supabaseClient) {
         try {
           const { data } = await supabaseClient.auth.getSession();
           if (data && data.session && data.session.user) {
@@ -259,6 +262,79 @@ export const AppProvider = ({ children }) => {
       }, 4000);
   };
 
+    const apiFetch = async (url, options = {}) => {
+    let accessToken = localStorage.getItem('access_token');
+
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+
+    const config = {
+      ...options,
+      headers
+    };
+
+    let response = await fetch(url, config);
+
+    if (response.status === 401) {
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (refreshToken) {
+        try {
+          const refreshRes = await fetch('/api/auth/refresh', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ refresh_token: refreshToken })
+          });
+
+          if (refreshRes.ok) {
+            const data = await refreshRes.json();
+            if (data.access_token && data.refresh_token) {
+              localStorage.setItem('access_token', data.access_token);
+              localStorage.setItem('refresh_token', data.refresh_token);
+
+              // Retry original request
+              headers['Authorization'] = `Bearer ${data.access_token}`;
+              response = await fetch(url, { ...config, headers });
+            }
+          } else {
+             // Refresh failed, logout
+             localStorage.removeItem('access_token');
+             localStorage.removeItem('refresh_token');
+             localStorage.removeItem('user_logged_in');
+             localStorage.removeItem('user_email');
+             localStorage.removeItem('admin_logged_in');
+             setIsLoggedIn(false);
+             setUserEmail(null);
+             setIsAdminUser(false);
+          }
+        } catch (e) {
+             console.error("Token refresh failed", e);
+             localStorage.removeItem('access_token');
+             localStorage.removeItem('refresh_token');
+             localStorage.removeItem('user_logged_in');
+             localStorage.removeItem('user_email');
+             localStorage.removeItem('admin_logged_in');
+             setIsLoggedIn(false);
+             setUserEmail(null);
+             setIsAdminUser(false);
+        }
+      } else {
+          setIsLoggedIn(false);
+          setUserEmail(null);
+          setIsAdminUser(false);
+      }
+    }
+
+    return response;
+  };
+
   // Shared Actions
   const sanitizeBookingForSupabase = (b) => {
       return {
@@ -356,7 +432,7 @@ export const AppProvider = ({ children }) => {
       isAdminUser, setIsAdminUser,
       activeView, setActiveView,
       modals, openModal, closeModal, modalData,
-      switchView, showToast, saveData, updateBookingStatusInDB, addLog, addNewsItem
+      switchView, showToast, saveData, updateBookingStatusInDB, addLog, addNewsItem, apiFetch
     }}>
       {children}
     </AppContext.Provider>

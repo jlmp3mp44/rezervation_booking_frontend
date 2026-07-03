@@ -435,6 +435,32 @@ const Modals = () => {
                 <h3 style={{ fontSize: '1.45rem', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.02em', fontFamily: 'var(--font-display)' }}>Вхід у HOROVOD HUB</h3>
             </div>
 
+            <div style={{ marginBottom: '1rem' }}>
+                <button
+                    type="button"
+                    className="btn btn-outline"
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                    onClick={async () => {
+                        try {
+                            const redirect_uri = window.location.origin + '/auth/google';
+                            const response = await fetch(`/api/auth/google/url?redirect_uri=${encodeURIComponent(redirect_uri)}`);
+                            if (response.ok) {
+                                const data = await response.json();
+                                if (data.url) {
+                                    window.location.href = data.url;
+                                }
+                            }
+                        } catch (err) {
+                            console.error('Error fetching Google auth URL:', err);
+                        }
+                    }}
+                >
+                    <i className="fa-brands fa-google"></i> Login with Google
+                </button>
+            </div>
+
+            <div style={{ textAlign: 'center', margin: '1rem 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>АБО</div>
+
             <form onSubmit={handleLogin}>
                 <div className="form-group" style={{ marginBottom: '1rem' }}>
                     <label>Ваш Email *</label>
