@@ -1,3 +1,4 @@
+import { api } from "./api";
 import React, { createContext, useState, useEffect, useContext } from 'react';
 
 const AppContext = createContext();
@@ -11,8 +12,6 @@ export const useAppContext = () => {
 };
 
 // --- CLOUD CONFIGURATION VARIABLES ---
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 function getMonday(d) {
   const date = new Date(d);
@@ -32,8 +31,6 @@ export const AppProvider = ({ children }) => {
   const [activeModalBookingId, setActiveModalBookingId] = useState(null);
   const [cancellationRole, setCancellationRole] = useState('client');
   const [activeView, setActiveView] = useState('calendar'); // 'calendar', 'book', 'admin'
-  const [supabaseClient, setSupabaseClient] = useState(null);
-  const [isSupabaseEnabled, setIsSupabaseEnabled] = useState(false);
 
   // Auth state
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -57,23 +54,6 @@ export const AppProvider = ({ children }) => {
   const [modalData, setModalData] = useState({});
 
   useEffect(() => {
-    // init cloud services
-    if (navigator.webdriver) {
-      console.log('Automated test environment detected. Disabling Supabase connectivity.');
-    } else if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) {
-      try {
-        const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        setSupabaseClient(client);
-        setIsSupabaseEnabled(true);
-        console.log('Supabase initialized.');
-      } catch (err) {
-        console.error('Supabase init error:', err);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    // load data once we know if supabase is enabled
     const loadData = async () => {
       // Wipe old test data once
       if (localStorage.getItem('rehearsal_hub_cleaned_v5') !== 'true') {
@@ -99,46 +79,39 @@ export const AppProvider = ({ children }) => {
 
       if (storedNews) loadedNews = JSON.parse(storedNews);
 
-      if (isSupabaseEnabled && supabaseClient) {
-        try {
-          const { data, error } = await supabaseClient.from('bookings').select('*');
-          if (!error && data) {
-            loadedBookings = data;
-            localStorage.setItem('rehearsal_bookings_horovod_hub_auth', JSON.stringify(loadedBookings));
-          } else if (storedBookings) {
-            loadedBookings = JSON.parse(storedBookings);
-          }
-        } catch (err) {
-          if (storedBookings) loadedBookings = JSON.parse(storedBookings);
+      try {
+        const { data, error } = await api.bookings.select('');
+        if (!error && data) {
+          loadedBookings = data;
+          localStorage.setItem('rehearsal_bookings_horovod_hub_auth', JSON.stringify(loadedBookings));
+        } else if (storedBookings) {
+          loadedBookings = JSON.parse(storedBookings);
         }
+      } catch (err) {
+        if (storedBookings) loadedBookings = JSON.parse(storedBookings);
+      }
 
-        try {
-          const { data, error } = await supabaseClient.from('logs').select('*').order('timestamp', { ascending: false }).limit(50);
-          if (!error && data) {
-            loadedLogs = data;
-            localStorage.setItem('rehearsal_logs_horovod_hub_auth', JSON.stringify(loadedLogs));
-          } else if (storedLogs) {
-             loadedLogs = JSON.parse(storedLogs);
-          }
-        } catch (err) {
-          if (storedLogs) loadedLogs = JSON.parse(storedLogs);
+      try {
+        const { data, error } = await api.logs.select('?order=timestamp&ascending=false&limit=50');
+        if (!error && data) {
+          loadedLogs = data;
+          localStorage.setItem('rehearsal_logs_horovod_hub_auth', JSON.stringify(loadedLogs));
+        } else if (storedLogs) {
+           loadedLogs = JSON.parse(storedLogs);
         }
+      } catch (err) {
+        if (storedLogs) loadedLogs = JSON.parse(storedLogs);
+      }
 
-        try {
-          const { data, error } = await supabaseClient.from('issues').select('*');
-          if (!error && data) {
-            loadedIssues = data;
-            localStorage.setItem('rehearsal_issues_horovod_hub_auth', JSON.stringify(loadedIssues));
-          } else if (storedIssues) {
-            loadedIssues = JSON.parse(storedIssues);
-          }
-        } catch (err) {
-           if (storedIssues) loadedIssues = JSON.parse(storedIssues);
+      try {
+        const { data, error } = await api.issues.select('');
+        if (!error && data) {
+          loadedIssues = data;
+          localStorage.setItem('rehearsal_issues_horovod_hub_auth', JSON.stringify(loadedIssues));
+        } else if (storedIssues) {
+          loadedIssues = JSON.parse(storedIssues);
         }
-
-      } else {
-         if (storedBookings) loadedBookings = JSON.parse(storedBookings);
-         if (storedLogs) loadedLogs = JSON.parse(storedLogs);
+      } catch (err) {
          if (storedIssues) loadedIssues = JSON.parse(storedIssues);
       }
 
@@ -152,77 +125,70 @@ export const AppProvider = ({ children }) => {
       let email = localStorage.getItem('user_email');
       let isAdmin = localStorage.getItem('admin_logged_in') === 'true';
 
-      if (isSupabaseEnabled && supabaseClient) {
-        try {
-          const { data } = await supabaseClient.auth.getSession();
-          if (data && data.session && data.session.user) {
-            loggedIn = true;
-            email = data.session.user.email;
-            isAdmin = email === 'horovod.info@gmail.com';
-            localStorage.setItem('user_logged_in', 'true');
-            localStorage.setItem('user_email', email);
-            localStorage.setItem('admin_logged_in', isAdmin ? 'true' : 'false');
-          } else {
-             const savedAdmin = localStorage.getItem('admin_logged_in') === 'true';
-             if (!savedAdmin) {
-               loggedIn = false;
-               email = null;
-               isAdmin = false;
-             }
-          }
-        } catch (err) {}
-      }
+      try {
+        const { data } = await api.auth.getSession();
+        if (data && data.session && data.session.user) {
+          loggedIn = true;
+          email = data.session.user.email;
+          isAdmin = email === 'horovod.info@gmail.com';
+          localStorage.setItem('user_logged_in', 'true');
+          localStorage.setItem('user_email', email);
+          localStorage.setItem('admin_logged_in', isAdmin ? 'true' : 'false');
+        } else {
+           const savedAdmin = localStorage.getItem('admin_logged_in') === 'true';
+           if (!savedAdmin) {
+             loggedIn = false;
+             email = null;
+             isAdmin = false;
+           }
+        }
+      } catch (err) {}
+
       setIsLoggedIn(loggedIn);
       setUserEmail(email);
       setIsAdminUser(isAdmin);
     };
 
     loadData();
-  }, [isSupabaseEnabled, supabaseClient]);
+  }, []);
 
   // Realtime subscription
   useEffect(() => {
-    if (isSupabaseEnabled && supabaseClient) {
-      const channel = supabaseClient
-        .channel('realtime-db-sync')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, async (payload) => {
-          try {
-            const { data, error } = await supabaseClient.from('bookings').select('*');
-            if (!error && data) {
-              setBookings(data);
-              localStorage.setItem('rehearsal_bookings_horovod_hub_auth', JSON.stringify(data));
-              // TODO: Unread badge logic if needed
+    const unsubscribe = api.realtime.subscribe(async (payload) => {
+      if (payload.table === 'bookings') {
+        try {
+          const { data, error } = await api.bookings.select('');
+          if (!error && data) {
+            setBookings(data);
+            localStorage.setItem('rehearsal_bookings_horovod_hub_auth', JSON.stringify(data));
+          }
+        } catch(err) {}
+      } else if (payload.table === 'issues') {
+        try {
+          const { data, error } = await api.issues.select('');
+          if (!error && data) {
+            setIssues(data);
+            localStorage.setItem('rehearsal_issues_horovod_hub_auth', JSON.stringify(data));
+          }
+        } catch(err) {}
+      } else if (payload.table === 'logs' && payload.eventType === 'INSERT') {
+        const newLog = payload.newRecord;
+        setLogs(prev => {
+            if (newLog && !prev.find(l => l.id === newLog.id)) {
+                const next = [newLog, ...prev];
+                if (next.length > 50) next.pop();
+                localStorage.setItem('rehearsal_logs_horovod_hub_auth', JSON.stringify(next));
+                return next;
             }
-          } catch(err) {}
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'issues' }, async () => {
-           try {
-            const { data, error } = await supabaseClient.from('issues').select('*');
-            if (!error && data) {
-              setIssues(data);
-              localStorage.setItem('rehearsal_issues_horovod_hub_auth', JSON.stringify(data));
-            }
-          } catch(err) {}
-        })
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'logs' }, async (payload) => {
-            const newLog = payload.new;
-            setLogs(prev => {
-                if (newLog && !prev.find(l => l.id === newLog.id)) {
-                    const next = [newLog, ...prev];
-                    if (next.length > 50) next.pop();
-                    localStorage.setItem('rehearsal_logs_horovod_hub_auth', JSON.stringify(next));
-                    return next;
-                }
-                return prev;
-            });
-        })
-        .subscribe();
+            return prev;
+        });
+      }
+    });
 
-      return () => {
-        supabaseClient.removeChannel(channel);
-      };
-    }
-  }, [isSupabaseEnabled, supabaseClient]);
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   const openModal = (modalName, data = {}) => {
     setModalData(prev => ({ ...prev, [modalName]: data }));
@@ -276,29 +242,26 @@ export const AppProvider = ({ children }) => {
 
       if (singleBooking === 'logs_only') return { success: true };
 
-      if (isSupabaseEnabled && supabaseClient) {
-          try {
-              if (singleBooking) {
-                  const { error } = await supabaseClient.from('bookings').upsert(sanitizeBookingForSupabase(singleBooking));
-                  if (error) return { success: false, error };
-              } else {
-                  const { error } = await supabaseClient.from('bookings').upsert(bookings.map(sanitizeBookingForSupabase));
-                  if (error) return { success: false, error };
-              }
-          } catch(err) {
-              return { success: false, error: err };
+      try {
+          if (singleBooking) {
+              const { error } = await api.bookings.upsert(sanitizeBookingForSupabase(singleBooking));
+              if (error) return { success: false, error };
+          } else {
+              const { error } = await api.bookings.upsert(bookings.map(sanitizeBookingForSupabase));
+              if (error) return { success: false, error };
           }
+      } catch(err) {
+          return { success: false, error: err };
       }
       return { success: true };
   };
 
   const updateBookingStatusInDB = async (b) => {
-      if (!isSupabaseEnabled || !supabaseClient) return { success: true };
       try {
-          const { data, error } = await supabaseClient.from('bookings').update(sanitizeBookingForSupabase(b)).eq('id', b.id).select();
+          const { data, error } = await api.bookings.update(sanitizeBookingForSupabase(b), b.id);
           if (error) return { success: false, error };
           if (!data || data.length === 0) {
-              await supabaseClient.from('bookings').insert(sanitizeBookingForSupabase(b));
+              await api.bookings.insert(sanitizeBookingForSupabase(b));
           }
           return { success: true };
       } catch (err) {
@@ -320,11 +283,9 @@ export const AppProvider = ({ children }) => {
           return next;
       });
 
-      if (isSupabaseEnabled && supabaseClient) {
-          supabaseClient.from('logs').insert(logEntry).then(({error}) => {
-              if (error) console.warn('Supabase log insert failed:', error);
-          }).catch(() => {});
-      }
+      api.logs.insert(logEntry).then(({error}) => {
+          if (error) console.warn('API log insert failed:', error);
+      }).catch(() => {});
   };
 
   const addNewsItem = (title, content, type = 'announcement') => {
@@ -349,8 +310,6 @@ export const AppProvider = ({ children }) => {
       currentWeekStartDate, setCurrentWeekStartDate,
       activeModalBookingId, setActiveModalBookingId,
       cancellationRole, setCancellationRole,
-      supabaseClient,
-      isSupabaseEnabled,
       isLoggedIn, setIsLoggedIn,
       userEmail, setUserEmail,
       isAdminUser, setIsAdminUser,

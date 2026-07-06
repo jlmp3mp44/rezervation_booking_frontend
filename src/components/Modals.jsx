@@ -1,3 +1,4 @@
+import { api } from "../api";
 import React, { useState } from 'react';
 import { useAppContext } from '../AppContext';
 
@@ -15,7 +16,10 @@ const Modals = () => {
     userEmail,
     saveData,
     updateBookingStatusInDB,
-    addLog
+    addLog,
+    setIssues,
+    issues,
+    addNewsItem
   } = useAppContext();
 
   // Simple local state for forms inside modals
@@ -107,7 +111,6 @@ const Modals = () => {
   };
 
   // 2. Issue Submit
-  const { setIssues } = useAppContext();
 
   const handleIssueSubmit = (e) => {
       e.preventDefault();
@@ -128,11 +131,9 @@ const Modals = () => {
           return next;
       });
 
-      if (isSupabaseEnabled && supabaseClient) {
-          supabaseClient.from('issues').insert(newIssue).then(({ error }) => {
-              if (error) console.warn('Supabase issue insert failed:', error);
-          }).catch(err => console.warn('Supabase issue insert exception:', err));
-      }
+      api.issues.insert(newIssue).then(({ error }) => {
+          if (error) console.warn('API issue insert failed:', error);
+      }).catch(err => console.warn('API issue insert exception:', err));
 
       const categoryLabels = { sound: 'Звук', instruments: 'Апаратура', cables: 'Кабелі', other: 'Інше' };
       const catLabel = categoryLabels[issueData.category] || issueData.category;
@@ -159,14 +160,13 @@ const Modals = () => {
           if (loginData.step === 1) {
               setLoginData(p => ({ ...p, step: 2 }));
           } else {
-              // Admin login logic (hardcoded fallback + supabase check)
+              // Admin login logic (hardcoded fallback + api check)
               let authSuccess = false;
-              if (isSupabaseEnabled && supabaseClient) {
-                  try {
-                      const { data, error } = await supabaseClient.auth.signInWithPassword({ email: em, password: loginData.password });
-                      if (!error && data.user) authSuccess = true;
-                  } catch (err) {}
-              }
+              try {
+                  const { data, error } = await api.auth.signInWithPassword({ email: em, password: loginData.password });
+                  if (!error && data.user) authSuccess = true;
+              } catch (err) {}
+
               if (authSuccess || loginData.password === '21admin02') {
                   localStorage.setItem('user_logged_in', 'true');
                   localStorage.setItem('admin_logged_in', 'true');
@@ -185,20 +185,40 @@ const Modals = () => {
           // Resident login flow
           if (loginData.step === 1) {
               // Stage 1: Send OTP
-              if (isSupabaseEnabled && supabaseClient) {
-                  try {
-                      const { error } = await supabaseClient.auth.signInWithOtp({ email: em });
-                      if (error) {
-                          showToast('Помилка відправки коду: ' + error.message, 'error');
-                          return;
-                      }
-                      setLoginData(p => ({ ...p, step: 2 }));
-                      showToast('Код підтвердження надіслано на вашу пошту!', 'success');
-                  } catch (err) {
-                      showToast('Помилка відправки коду.', 'error');
+              try {
+                  const { error } = await api.auth.signInWithOtp({ email: em });
+                  if (error) {
+                      showToast('Помилка відправки коду: ' + error.message, 'error');
+                      return;
                   }
-              } else {
-                  // Offline / Test environment: bypass and log in immediately
+                  setLoginData(p => ({ ...p, step: 2 }));
+                  showToast('Код підтвердження надіслано на вашу пошту!', 'success');
+              } catch (err) {
+                  showToast('Помилка відправки коду.', 'error');
+              }
+          } else {
+              // Stage 2: Verify OTP
+              let authSuccess = false;
+              try {
+                  const { data, error } = await api.auth.verifyOtp({ email: em, token: loginData.password, type: 'email' });
+                  if (!error && data.session) {
+                      authSuccess = true;
+                  } else if (loginData.password === '0000' || loginData.password === '1234') { // local dev bypass
+                      authSuccess = true;
+                  } else {
+                      showToast('Невірний код підтвердження!', 'error');
+                      return;
+                  }
+              } catch (err) {
+                  if (loginData.password === '0000' || loginData.password === '1234') {
+                      authSuccess = true;
+                  } else {
+                      showToast('Помилка підтвердження коду.', 'error');
+                      return;
+                  }
+              }
+
+              if (authSuccess) {
                   localStorage.setItem('user_logged_in', 'true');
                   localStorage.setItem('admin_logged_in', 'false');
                   localStorage.setItem('user_email', em);
@@ -206,43 +226,8 @@ const Modals = () => {
                   setUserEmail(em);
                   setIsAdminUser(false);
                   closeModal('login');
-                  showToast('Вхід виконано успішно (Локальний режим)!', 'success');
+                  showToast('Вхід виконано успішно!', 'success');
                   setLoginData({ email: '', password: '', step: 1 });
-              }
-          } else {
-              // Stage 2: Verify OTP
-              if (isSupabaseEnabled && supabaseClient) {
-                  let authSuccess = false;
-                  try {
-                      const { data, error } = await supabaseClient.auth.verifyOtp({ email: em, token: loginData.password, type: 'email' });
-                      if (!error && data.session) {
-                          authSuccess = true;
-                      } else if (loginData.password === '0000' || loginData.password === '1234') { // local dev bypass
-                          authSuccess = true;
-                      } else {
-                          showToast('Невірний код підтвердження!', 'error');
-                          return;
-                      }
-                  } catch (err) {
-                      if (loginData.password === '0000' || loginData.password === '1234') {
-                          authSuccess = true;
-                      } else {
-                          showToast('Помилка підтвердження коду.', 'error');
-                          return;
-                      }
-                  }
-
-                  if (authSuccess) {
-                      localStorage.setItem('user_logged_in', 'true');
-                      localStorage.setItem('admin_logged_in', 'false');
-                      localStorage.setItem('user_email', em);
-                      setIsLoggedIn(true);
-                      setUserEmail(em);
-                      setIsAdminUser(false);
-                      closeModal('login');
-                      showToast('Вхід виконано успішно!', 'success');
-                      setLoginData({ email: '', password: '', step: 1 });
-                  }
               }
           }
       }
@@ -327,7 +312,7 @@ const Modals = () => {
               <form onSubmit={async (e) => {
                   e.preventDefault();
 
-                  const targetIssue = useAppContext().issues?.find(i => i.id === modalData.resolveIssue?.issueId);
+                  const targetIssue = issues?.find(i => i.id === modalData.resolveIssue?.issueId);
                   if (!targetIssue) return;
 
                   const how = e.target.elements[0].value.trim();
@@ -338,23 +323,21 @@ const Modals = () => {
                   addLog('notify-accept', `Кому: ${targetIssue.reportedBy}\n[ВІДПОВІДЬ НА ЗВЕРНЕННЯ] ${msg}`, 'approved', 'Повідомлено', `Звіт від <strong>${targetIssue.reportedBy}</strong> про проблему <strong>"${targetIssue.title}"</strong> прийнято.<br>Відповідь автору звернення:<br><em>${msg.replace(/\n/g, '<br>')}</em>`);
 
                   // Add to News Feed
-                  useAppContext().addNewsItem(`Вирішено проблему: ${targetIssue.title}`, `Роботи: ${how}\nТермін: ${when}\nСтатус: Вирішено & прийнято в роботу admin.`, 'resolved');
+                  addNewsItem(`Вирішено проблему: ${targetIssue.title}`, `Роботи: ${how}\nТермін: ${when}\nСтатус: Вирішено & прийнято в роботу admin.`, 'resolved');
 
                   // Add resolution notice to activity sidebar
                   addLog('issue-resolved', `[ВИРІШЕНО] ${targetIssue.title} відремонтовано`, 'approved', 'Вирішено', `Несправність <strong>"${targetIssue.title}"</strong> успішно усунено: <em>${how}</em>.`);
 
                   // Remove resolved issue
-                  useAppContext().setIssues(prev => {
+                  setIssues(prev => {
                       const next = prev.filter(i => i.id !== targetIssue.id);
                       localStorage.setItem('rehearsal_issues_horovod_hub_auth', JSON.stringify(next));
                       return next;
                   });
 
-                  if (isSupabaseEnabled && supabaseClient) {
-                      try {
-                          await supabaseClient.from('issues').delete().eq('id', targetIssue.id);
-                      } catch(err) {}
-                  }
+                  try {
+                      await api.issues.delete(targetIssue.id);
+                  } catch(err) {}
 
                   showToast('Ремонт зареєстровано, репортера сповіщено, анонс додано в стрічку.', 'success');
                   closeModal('resolveIssue');
