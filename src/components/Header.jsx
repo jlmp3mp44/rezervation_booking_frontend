@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../AppContext';
+import { api } from '../api';
 
 const Header = ({ toggleSidebar, unreadCount }) => {
   const {
@@ -12,8 +13,6 @@ const Header = ({ toggleSidebar, unreadCount }) => {
     activeView,
     switchView,
     openModal,
-    supabaseClient,
-    isSupabaseEnabled,
     bookings,
     showToast
   } = useAppContext();
@@ -38,12 +37,10 @@ const Header = ({ toggleSidebar, unreadCount }) => {
   }, [lastScrollY]);
 
   const handleLogout = async () => {
-    if (isSupabaseEnabled && supabaseClient) {
-      try {
-        await supabaseClient.auth.signOut();
-      } catch (err) {
-        console.error('Supabase signOut error:', err);
-      }
+    try {
+      await api.auth.signOut();
+    } catch (err) {
+      console.error('SignOut error:', err);
     }
     localStorage.removeItem('user_logged_in');
     localStorage.removeItem('admin_logged_in');
