@@ -1,24 +1,89 @@
 const API_BASE = window.HOROVOD_API_URL || 'http://localhost:8080/api';
 const SESSION_KEY = 'horovod_backend_session';
 
-function getStoredToken() {
-  try { return localStorage.getItem(SESSION_KEY); } catch (e) { return null; }
+function getStoredTokens() {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch (e) { return null; }
 }
 
-function setStoredToken(token) {
+function setStoredTokens(tokens) {
   try {
-    if (token) localStorage.setItem(SESSION_KEY, token);
+    if (tokens) localStorage.setItem(SESSION_KEY, JSON.stringify(tokens));
     else localStorage.removeItem(SESSION_KEY);
   } catch (e) {}
 }
 
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+function onRefreshed(token) {
+  refreshSubscribers.forEach(cb => cb(token));
+  refreshSubscribers = [];
+}
+
+function addRefreshSubscriber(cb) {
+  refreshSubscribers.push(cb);
+}
+
 async function apiFetch(path, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...options.headers };
-  const token = getStoredToken();
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  let tokens = getStoredTokens();
+  if (tokens && tokens.access_token) headers['Authorization'] = `Bearer ${tokens.access_token}`;
 
   try {
-    const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+    let res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+
+    // Handle 401 Unauthorized by trying to refresh the token
+    if (res.status === 401 && tokens && tokens.refresh_token && path !== '/auth/refresh') {
+      if (!isRefreshing) {
+        isRefreshing = true;
+        try {
+          const refreshRes = await fetch(`${API_BASE}/auth/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh_token: tokens.refresh_token })
+          });
+
+          if (refreshRes.ok) {
+            const refreshData = await refreshRes.json();
+            if (refreshData.access_token) {
+               tokens = {
+                 access_token: refreshData.access_token,
+                 refresh_token: refreshData.refresh_token || tokens.refresh_token
+               };
+               setStoredTokens(tokens);
+               onRefreshed(tokens.access_token);
+
+               // Retry the original request
+               headers['Authorization'] = `Bearer ${tokens.access_token}`;
+               res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+            } else {
+               setStoredTokens(null);
+               onRefreshed(null);
+            }
+          } else {
+            setStoredTokens(null);
+            onRefreshed(null);
+          }
+        } catch (e) {
+          setStoredTokens(null);
+          onRefreshed(null);
+        } finally {
+          isRefreshing = false;
+        }
+      } else {
+        // Wait for refresh to complete
+        await new Promise(resolve => {
+           addRefreshSubscriber(token => {
+             if (token) {
+               headers['Authorization'] = `Bearer ${token}`;
+             }
+             resolve();
+           });
+        });
+        res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+      }
+    }
+
     let data = null;
     const text = await res.text();
     if (text) {
@@ -65,22 +130,60 @@ export const api = {
     getSession: async () => {
       const result = await apiFetch('/auth/session');
       if (result.error || !result.data) return { data: { session: null }, error: null };
-      if (result.data.session?.access_token) setStoredToken(result.data.session.access_token);
+      if (result.data.session?.access_token) {
+        let tokens = getStoredTokens() || {};
+        tokens.access_token = result.data.session.access_token;
+        if (result.data.session.refresh_token) tokens.refresh_token = result.data.session.refresh_token;
+        setStoredTokens(tokens);
+      }
       return { data: { session: result.data.session }, error: null };
     },
     signInWithPassword: async ({ email, password }) => {
       const result = await apiFetch('/auth/login/password', { method: 'POST', body: JSON.stringify({ email, password }) });
-      if (result.data?.session?.access_token) setStoredToken(result.data.session.access_token);
+      if (result.data?.session?.access_token) {
+        setStoredTokens({
+          access_token: result.data.session.access_token,
+          refresh_token: result.data.session.refresh_token
+        });
+      }
       return result;
     },
     signInWithOtp: async ({ email }) => apiFetch('/auth/otp/send', { method: 'POST', body: JSON.stringify({ email }) }),
     verifyOtp: async ({ email, token, type }) => {
       const result = await apiFetch('/auth/otp/verify', { method: 'POST', body: JSON.stringify({ email, token, type }) });
-      if (result.data?.session?.access_token) setStoredToken(result.data.session.access_token);
+      if (result.data?.session?.access_token) {
+        setStoredTokens({
+          access_token: result.data.session.access_token,
+          refresh_token: result.data.session.refresh_token
+        });
+      }
       return result;
     },
+    getGoogleAuthUrl: async ({ redirectUri }) => {
+      const result = await apiFetch(`/auth/google/url?redirect_uri=${encodeURIComponent(redirectUri)}`);
+      return result;
+    },
+    signInWithGoogle: async ({ code, state, redirectUri }) => {
+      const result = await apiFetch('/auth/google', {
+        method: 'POST',
+        body: JSON.stringify({ code, state, redirect_uri: redirectUri })
+      });
+      if (result.data && result.data.access_token) {
+        setStoredTokens({
+          access_token: result.data.access_token,
+          refresh_token: result.data.refresh_token
+        });
+      }
+      return result;
+    },
+    refreshToken: async ({ refresh_token }) => {
+      return apiFetch('/auth/refresh', {
+        method: 'POST',
+        body: JSON.stringify({ refresh_token })
+      });
+    },
     signOut: async () => {
-      setStoredToken(null);
+      setStoredTokens(null);
       return apiFetch('/auth/logout', { method: 'POST' });
     }
   },
