@@ -138,26 +138,18 @@ export const api = {
       }
       return { data: { session: result.data.session }, error: null };
     },
-    signInWithPassword: async ({ email, password }) => {
-      const result = await apiFetch('/auth/login/password', { method: 'POST', body: JSON.stringify({ email, password }) });
-      if (result.data?.session?.access_token) {
-        setStoredTokens({
-          access_token: result.data.session.access_token,
-          refresh_token: result.data.session.refresh_token
-        });
+    login: async ({ email, password }) => {
+      const result = await apiFetch('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+      if (result.data?.access_token) {
+        let tokens = getStoredTokens() || {};
+        tokens.access_token = result.data.access_token;
+        if (result.data.refresh_token) tokens.refresh_token = result.data.refresh_token;
+        setStoredTokens(tokens);
       }
       return result;
     },
-    signInWithOtp: async ({ email }) => apiFetch('/auth/otp/send', { method: 'POST', body: JSON.stringify({ email }) }),
-    verifyOtp: async ({ email, token, type }) => {
-      const result = await apiFetch('/auth/otp/verify', { method: 'POST', body: JSON.stringify({ email, token, type }) });
-      if (result.data?.session?.access_token) {
-        setStoredTokens({
-          access_token: result.data.session.access_token,
-          refresh_token: result.data.session.refresh_token
-        });
-      }
-      return result;
+    register: async ({ email, password }) => {
+      return apiFetch('/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) });
     },
     getGoogleAuthUrl: async ({ redirectUri }) => {
       const result = await apiFetch(`/auth/google/url?redirect_uri=${encodeURIComponent(redirectUri)}`);
