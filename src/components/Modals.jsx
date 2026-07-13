@@ -159,14 +159,18 @@ const Modals = () => {
       if (loginData.isRegister) {
           const { error } = await api.auth.register({ email: em, password: loginData.password });
           if (error) {
+              console.error("Registration API error:", error);
               showToast(error.message || 'Помилка реєстрації', 'error');
           } else {
+              console.log("Registration API success");
               showToast('Реєстрація успішна! Тепер увійдіть.', 'success');
               setLoginData(p => ({ ...p, isRegister: false, password: '' }));
           }
       } else {
           const { data, error } = await api.auth.login({ email: em, password: loginData.password });
+          console.log("Login API response:", { data, error });
           if (error) {
+              console.error("Login API error:", error);
               showToast(error.message || 'Помилка входу', 'error');
           } else if (data && data.user) {
               const isAdmin = data.user.isAdmin || em === 'horovod.info@gmail.com';
@@ -387,26 +391,6 @@ const Modals = () => {
             <div style={{ marginTop: '1rem', textAlign: 'center' }}>
                 <button type="button" className="btn btn-link" style={{ background: 'none', border: 'none', color: 'var(--text-primary)', textDecoration: 'underline', cursor: 'pointer' }} onClick={() => setLoginData(p => ({ ...p, isRegister: !p.isRegister }))}>
                     {loginData.isRegister ? 'Вже є акаунт? Увійти' : 'Немає акаунту? Зареєструватись'}
-                </button>
-            </div>
-
-            <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>Або увійдіть за допомогою</p>
-                <button
-                    type="button"
-                    className="btn btn-outline"
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-                    onClick={async () => {
-                        const redirectUri = window.location.origin + '/auth/google';
-                        const res = await api.auth.getGoogleAuthUrl({ redirectUri });
-                        if (res.data && res.data.url) {
-                            window.location.href = res.data.url;
-                        } else {
-                            showToast('Помилка при отриманні посилання Google.', 'error');
-                        }
-                    }}
-                >
-                    <i className="fa-brands fa-google" style={{ color: '#DB4437' }}></i> Login with Google
                 </button>
             </div>
         </div>
