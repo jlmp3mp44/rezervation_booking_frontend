@@ -188,12 +188,14 @@ const Modals = () => {
               try {
                   const { error } = await api.auth.signInWithOtp({ email: em });
                   if (error) {
+                      console.error(`[OTP Send Error]`, error);
                       showToast('Помилка відправки коду: ' + error.message, 'error');
                       return;
                   }
                   setLoginData(p => ({ ...p, step: 2 }));
                   showToast('Код підтвердження надіслано на вашу пошту!', 'success');
               } catch (err) {
+                  console.error(`[OTP Send Exception]`, err);
                   showToast('Помилка відправки коду.', 'error');
               }
           } else {
@@ -206,6 +208,7 @@ const Modals = () => {
                   } else if (loginData.password === '0000' || loginData.password === '1234') { // local dev bypass
                       authSuccess = true;
                   } else {
+                      console.error(`[OTP Verify Error]`, error);
                       showToast('Невірний код підтвердження!', 'error');
                       return;
                   }
@@ -213,6 +216,7 @@ const Modals = () => {
                   if (loginData.password === '0000' || loginData.password === '1234') {
                       authSuccess = true;
                   } else {
+                      console.error(`[OTP Verify Exception]`, err);
                       showToast('Помилка підтвердження коду.', 'error');
                       return;
                   }
@@ -431,26 +435,6 @@ const Modals = () => {
                 )}
                 <button type="submit" className="btn btn-primary btn-login-submit" style={{ width: '100%', marginTop: '0.5rem' }}>{loginData.step === 1 && loginData.email.toLowerCase().trim() !== 'horovod.info@gmail.com' ? 'Надіслати код' : 'Увійти'}</button>
             </form>
-
-            <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>Або увійдіть за допомогою</p>
-                <button
-                    type="button"
-                    className="btn btn-outline"
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-                    onClick={async () => {
-                        const redirectUri = window.location.origin + '/auth/google';
-                        const res = await api.auth.getGoogleAuthUrl({ redirectUri });
-                        if (res.data && res.data.url) {
-                            window.location.href = res.data.url;
-                        } else {
-                            showToast('Помилка при отриманні посилання Google.', 'error');
-                        }
-                    }}
-                >
-                    <i className="fa-brands fa-google" style={{ color: '#DB4437' }}></i> Login with Google
-                </button>
-            </div>
         </div>
       </div>
 

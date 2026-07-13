@@ -90,11 +90,15 @@ async function apiFetch(path, options = {}) {
       try { data = JSON.parse(text); } catch (e) { data = text; }
     }
     if (!res.ok) {
-      return { data: null, error: { message: data?.message || text || res.statusText, status: res.status } };
+      const errorObj = { message: data?.message || text || res.statusText, status: res.status };
+      console.error(`[API Error] ${options.method || 'GET'} ${API_BASE}${path}`, errorObj);
+      return { data: null, error: errorObj };
     }
     return { data, error: null };
   } catch (err) {
-    return { data: null, error: { message: err.message || 'Network error' } };
+    const errorObj = { message: err.message || 'Network error' };
+    console.error(`[API Network Error] ${options.method || 'GET'} ${API_BASE}${path}`, err, errorObj);
+    return { data: null, error: errorObj };
   }
 }
 
