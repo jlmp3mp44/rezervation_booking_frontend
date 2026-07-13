@@ -130,7 +130,7 @@ export const AppProvider = ({ children }) => {
         if (data && data.session && data.session.user) {
           loggedIn = true;
           email = data.session.user.email;
-          isAdmin = email === 'horovod.info@gmail.com';
+          isAdmin = data.session.user.isAdmin || email === 'horovod.info@gmail.com';
           localStorage.setItem('user_logged_in', 'true');
           localStorage.setItem('user_email', email);
           localStorage.setItem('admin_logged_in', isAdmin ? 'true' : 'false');

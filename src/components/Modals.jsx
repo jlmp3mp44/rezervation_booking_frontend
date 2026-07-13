@@ -24,7 +24,7 @@ const Modals = () => {
 
   // Simple local state for forms inside modals
   const [issueData, setIssueData] = useState({ title: '', category: 'sound', description: '' });
-  const [loginData, setLoginData] = useState({ email: '', password: '', step: 1 });
+  const [loginData, setLoginData] = useState({ email: '', password: '', isRegister: false });
 
   // 1. Event Modal
   const activeBooking = bookings.find(b => b.id === modalData.event?.bookingId);
@@ -156,79 +156,29 @@ const Modals = () => {
       e.preventDefault();
       const em = loginData.email.toLowerCase().trim();
 
-      if (em === 'horovod.info@gmail.com') {
-          if (loginData.step === 1) {
-              setLoginData(p => ({ ...p, step: 2 }));
+      if (loginData.isRegister) {
+          const { error } = await api.auth.register({ email: em, password: loginData.password });
+          if (error) {
+              showToast(error.message || 'Помилка реєстрації', 'error');
           } else {
-              // Admin login logic (hardcoded fallback + api check)
-              let authSuccess = false;
-              try {
-                  const { data, error } = await api.auth.signInWithPassword({ email: em, password: loginData.password });
-                  if (!error && data.user) authSuccess = true;
-              } catch (err) {}
-
-              if (authSuccess || loginData.password === '21admin02') {
-                  localStorage.setItem('user_logged_in', 'true');
-                  localStorage.setItem('admin_logged_in', 'true');
-                  localStorage.setItem('user_email', em);
-                  setIsLoggedIn(true);
-                  setUserEmail(em);
-                  setIsAdminUser(true);
-                  closeModal('login');
-                  showToast('Вхід виконано як адміністратор!', 'success');
-                  setLoginData({ email: '', password: '', step: 1 });
-              } else {
-                  showToast('Невірний пароль адміністратора!', 'error');
-              }
+              showToast('Реєстрація успішна! Тепер увійдіть.', 'success');
+              setLoginData(p => ({ ...p, isRegister: false, password: '' }));
           }
       } else {
-          // Resident login flow
-          if (loginData.step === 1) {
-              // Stage 1: Send OTP
-              try {
-                  const { error } = await api.auth.signInWithOtp({ email: em });
-                  if (error) {
-                      showToast('Помилка відправки коду: ' + error.message, 'error');
-                      return;
-                  }
-                  setLoginData(p => ({ ...p, step: 2 }));
-                  showToast('Код підтвердження надіслано на вашу пошту!', 'success');
-              } catch (err) {
-                  showToast('Помилка відправки коду.', 'error');
-              }
-          } else {
-              // Stage 2: Verify OTP
-              let authSuccess = false;
-              try {
-                  const { data, error } = await api.auth.verifyOtp({ email: em, token: loginData.password, type: 'email' });
-                  if (!error && data.session) {
-                      authSuccess = true;
-                  } else if (loginData.password === '0000' || loginData.password === '1234') { // local dev bypass
-                      authSuccess = true;
-                  } else {
-                      showToast('Невірний код підтвердження!', 'error');
-                      return;
-                  }
-              } catch (err) {
-                  if (loginData.password === '0000' || loginData.password === '1234') {
-                      authSuccess = true;
-                  } else {
-                      showToast('Помилка підтвердження коду.', 'error');
-                      return;
-                  }
-              }
-
-              if (authSuccess) {
-                  localStorage.setItem('user_logged_in', 'true');
-                  localStorage.setItem('admin_logged_in', 'false');
-                  localStorage.setItem('user_email', em);
-                  setIsLoggedIn(true);
-                  setUserEmail(em);
-                  setIsAdminUser(false);
-                  closeModal('login');
-                  showToast('Вхід виконано успішно!', 'success');
-                  setLoginData({ email: '', password: '', step: 1 });
-              }
+          const { data, error } = await api.auth.login({ email: em, password: loginData.password });
+          if (error) {
+              showToast(error.message || 'Помилка входу', 'error');
+          } else if (data && data.user) {
+              const isAdmin = data.user.isAdmin || em === 'horovod.info@gmail.com';
+              localStorage.setItem('user_logged_in', 'true');
+              localStorage.setItem('admin_logged_in', isAdmin ? 'true' : 'false');
+              localStorage.setItem('user_email', em);
+              setIsLoggedIn(true);
+              setUserEmail(em);
+              setIsAdminUser(isAdmin);
+              closeModal('login');
+              showToast(isAdmin ? 'Вхід виконано як адміністратор!' : 'Вхід виконано успішно!', 'success');
+              setLoginData({ email: '', password: '', isRegister: false });
           }
       }
   };
@@ -415,7 +365,9 @@ const Modals = () => {
         <div className="modal-content login-modal-content">
             <button className="modal-close" onClick={() => closeModal('login')}>&times;</button>
             <div className="modal-header" style={{ borderBottom: 'none', marginBottom: '1.25rem', paddingBottom: 0, textAlign: 'center' }}>
-                <h3 style={{ fontSize: '1.45rem', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.02em', fontFamily: 'var(--font-display)' }}>Вхід у HOROVOD HUB</h3>
+                <h3 style={{ fontSize: '1.45rem', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.02em', fontFamily: 'var(--font-display)' }}>
+                    {loginData.isRegister ? 'Реєстрація' : 'Вхід у HOROVOD HUB'}
+                </h3>
             </div>
 
             <form onSubmit={handleLogin}>
@@ -423,14 +375,20 @@ const Modals = () => {
                     <label>Ваш Email *</label>
                     <input type="email" required placeholder="наприклад: resident@gmail.com" value={loginData.email} onChange={e => setLoginData(p => ({...p, email: e.target.value}))} />
                 </div>
-                {loginData.step === 2 && (
-                    <div className="form-group" style={{ marginBottom: '1rem' }}>
-                        <label>{loginData.email.toLowerCase().trim() === 'horovod.info@gmail.com' ? 'Пароль адміністратора *' : 'Код підтвердження з пошти *'}</label>
-                        <input type={loginData.email.toLowerCase().trim() === 'horovod.info@gmail.com' ? 'password' : 'text'} required placeholder={loginData.email.toLowerCase().trim() === 'horovod.info@gmail.com' ? 'Введіть пароль адміна' : 'Введіть код'} value={loginData.password} onChange={e => setLoginData(p => ({...p, password: e.target.value}))} />
-                    </div>
-                )}
-                <button type="submit" className="btn btn-primary btn-login-submit" style={{ width: '100%', marginTop: '0.5rem' }}>{loginData.step === 1 && loginData.email.toLowerCase().trim() !== 'horovod.info@gmail.com' ? 'Надіслати код' : 'Увійти'}</button>
+                <div className="form-group" style={{ marginBottom: '1rem' }}>
+                    <label>Пароль *</label>
+                    <input type="password" required placeholder="Ваш пароль" value={loginData.password} onChange={e => setLoginData(p => ({...p, password: e.target.value}))} />
+                </div>
+                <button type="submit" className="btn btn-primary btn-login-submit" style={{ width: '100%', marginTop: '0.5rem' }}>
+                    {loginData.isRegister ? 'Зареєструватись' : 'Увійти'}
+                </button>
             </form>
+
+            <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+                <button type="button" className="btn btn-link" style={{ background: 'none', border: 'none', color: 'var(--text-primary)', textDecoration: 'underline', cursor: 'pointer' }} onClick={() => setLoginData(p => ({ ...p, isRegister: !p.isRegister }))}>
+                    {loginData.isRegister ? 'Вже є акаунт? Увійти' : 'Немає акаунту? Зареєструватись'}
+                </button>
+            </div>
 
             <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>Або увійдіть за допомогою</p>
