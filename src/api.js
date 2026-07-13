@@ -90,10 +90,12 @@ async function apiFetch(path, options = {}) {
       try { data = JSON.parse(text); } catch (e) { data = text; }
     }
     if (!res.ok) {
+      console.error("API Error Response:", { status: res.status, text, data });
       return { data: null, error: { message: data?.message || text || res.statusText, status: res.status } };
     }
     return { data, error: null };
   } catch (err) {
+    console.error("API Fetch Network Error:", err);
     return { data: null, error: { message: err.message || 'Network error' } };
   }
 }
