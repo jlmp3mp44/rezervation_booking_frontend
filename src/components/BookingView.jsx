@@ -23,11 +23,12 @@ const BookingView = () => {
   // Pre-fill date based on drag selection or defaults
   useEffect(() => {
     if (window.__pendingBookingDrag) {
+        const dragData = window.__pendingBookingDrag;
         setFormData(prev => ({
             ...prev,
-            date: window.__pendingBookingDrag.date,
-            startTime: window.__pendingBookingDrag.start,
-            endTime: window.__pendingBookingDrag.end
+            date: dragData.date,
+            startTime: dragData.start,
+            endTime: dragData.end
         }));
         delete window.__pendingBookingDrag;
     } else if (!formData.date) {
