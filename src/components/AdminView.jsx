@@ -58,7 +58,7 @@ const AdminView = () => {
 
       setBookings(prev => prev.map(item => item.id === id ? updatedBooking : item));
 
-      addLog('notify-accept', `[ПІДТВЕРДЖЕННЯ]\nКому: ${b.email}\nКому: horovod.info@gmail.com\nБронювання для "${b.userName}" (тип: ${b.type}) на ${b.date} о ${b.startTime}-${b.endTime} ПІДТВЕРДЖЕНО.`, 'approved', 'Підтверджено', `Запит від <strong>${b.userName}</strong> (тип: ${b.type}) на <strong>${b.date}</strong> о <strong>${b.startTime}-${b.endTime}</strong> підтверджено.`, b.id);
+      addLog('notify-accept', `[ПІДТВЕРДЖЕННЯ]\nКому: ${b.email}\nКому: julya.newfold@gmail.com\nБронювання для "${b.userName}" (тип: ${b.type}) на ${b.date} о ${b.startTime}-${b.endTime} ПІДТВЕРДЖЕНО.`, 'approved', 'Підтверджено', `Запит від <strong>${b.userName}</strong> (тип: ${b.type}) на <strong>${b.date}</strong> о <strong>${b.startTime}-${b.endTime}</strong> підтверджено.`, b.id);
 
       await saveData('logs_only');
       const { success } = await updateBookingStatusInDB(updatedBooking);
@@ -80,7 +80,7 @@ const AdminView = () => {
 
       setBookings(prev => prev.map(item => item.id === id ? updatedBooking : item));
 
-      addLog('notify-reject', `[ВІДХИЛЕНО]\nКому: ${b.email}\nКому: horovod.info@gmail.com\nЗапит від "${b.userName}" (тип: ${b.type}) на ${b.date} о ${b.startTime}-${b.endTime} ВІДХИЛЕНО.`, 'rejected', 'Відхилено', `Запит від <strong>${b.userName}</strong> (тип: ${b.type}) на <strong>${b.date}</strong> о <strong>${b.startTime}-${b.endTime}</strong> відхилено.`, b.id);
+      addLog('notify-reject', `[ВІДХИЛЕНО]\nКому: ${b.email}\nКому: julya.newfold@gmail.com\nЗапит від "${b.userName}" (тип: ${b.type}) на ${b.date} о ${b.startTime}-${b.endTime} ВІДХИЛЕНО.`, 'rejected', 'Відхилено', `Запит від <strong>${b.userName}</strong> (тип: ${b.type}) на <strong>${b.date}</strong> о <strong>${b.startTime}-${b.endTime}</strong> відхилено.`, b.id);
 
       await saveData('logs_only');
       const { success } = await updateBookingStatusInDB(updatedBooking);

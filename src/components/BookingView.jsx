@@ -80,10 +80,10 @@ const BookingView = () => {
       await saveData(newBooking);
 
       if (isAdminUser && newBooking.status === 'approved') {
-          addLog('notify-accept', `[ПІДТВЕРДЖЕННЯ]\nКому: horovod.info@gmail.com\nБронювання для "Адміністратор" (тип: ${newBooking.type}) на ${newBooking.date} о ${newBooking.startTime}-${newBooking.endTime} ПІДТВЕРДЖЕНО.`, 'approved', 'Підтверджено', `Бронювання для <strong>Адміністратора</strong> (тип: ${newBooking.type}) на <strong>${newBooking.date}</strong> о <strong>${newBooking.startTime}-${newBooking.endTime}</strong> підтверджено.`, newBooking.id);
+          addLog('notify-accept', `[ПІДТВЕРДЖЕННЯ]\nКому: julya.newfold@gmail.com\nБронювання для "Адміністратор" (тип: ${newBooking.type}) на ${newBooking.date} о ${newBooking.startTime}-${newBooking.endTime} ПІДТВЕРДЖЕНО.`, 'approved', 'Підтверджено', `Бронювання для <strong>Адміністратора</strong> (тип: ${newBooking.type}) на <strong>${newBooking.date}</strong> о <strong>${newBooking.startTime}-${newBooking.endTime}</strong> підтверджено.`, newBooking.id);
           showToast('Бронювання підтверджено!', 'success');
       } else {
-          addLog('notify-admin', `[ОТРИМАНО ЗАПИТ]\nКому: horovod.info@gmail.com\nНовий запит від "${newBooking.userName}" (тип: ${newBooking.type}) на ${newBooking.date} з ${newBooking.startTime} до ${newBooking.endTime}.\nОчікує розгляду в панелі адміна.`, 'pending', 'Запит', `<strong>${newBooking.userName}</strong> надіслав запит (тип: ${newBooking.type}) на <strong>${newBooking.date}</strong> о <strong>${newBooking.startTime}-${newBooking.endTime}</strong>.`, newBooking.id);
+          addLog('notify-admin', `[ОТРИМАНО ЗАПИТ]\nКому: julya.newfold@gmail.com\nНовий запит від "${newBooking.userName}" (тип: ${newBooking.type}) на ${newBooking.date} з ${newBooking.startTime} до ${newBooking.endTime}.\nОчікує розгляду в панелі адміна.`, 'pending', 'Запит', `<strong>${newBooking.userName}</strong> надіслав запит (тип: ${newBooking.type}) на <strong>${newBooking.date}</strong> о <strong>${newBooking.startTime}-${newBooking.endTime}</strong>.`, newBooking.id);
           showToast('Запит успішно надіслано. Координатор перевірить його найближчим часом.', 'success');
       }
 

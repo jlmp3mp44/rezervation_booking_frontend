@@ -34,7 +34,7 @@ const Modals = () => {
       const prevStatus = activeBooking.status;
       const updatedBooking = { ...activeBooking, status: 'approved' };
       setBookings(prev => prev.map(item => item.id === activeBooking.id ? updatedBooking : item));
-      addLog('notify-accept', `[ПІДТВЕРДЖЕННЯ]\nКому: ${activeBooking.email}\nКому: horovod.info@gmail.com\nБронювання для "${activeBooking.userName}" (тип: ${activeBooking.type}) на ${activeBooking.date} о ${activeBooking.startTime}-${activeBooking.endTime} ПІДТВЕРДЖЕНО.`, 'approved', 'Підтверджено', `Запит від <strong>${activeBooking.userName}</strong> (тип: ${activeBooking.type}) на <strong>${activeBooking.date}</strong> о <strong>${activeBooking.startTime}-${activeBooking.endTime}</strong> підтверджено.`, activeBooking.id);
+      addLog('notify-accept', `[ПІДТВЕРДЖЕННЯ]\nКому: ${activeBooking.email}\nКому: julya.newfold@gmail.com\nБронювання для "${activeBooking.userName}" (тип: ${activeBooking.type}) на ${activeBooking.date} о ${activeBooking.startTime}-${activeBooking.endTime} ПІДТВЕРДЖЕНО.`, 'approved', 'Підтверджено', `Запит від <strong>${activeBooking.userName}</strong> (тип: ${activeBooking.type}) на <strong>${activeBooking.date}</strong> о <strong>${activeBooking.startTime}-${activeBooking.endTime}</strong> підтверджено.`, activeBooking.id);
       await saveData('logs_only');
       const { success } = await updateBookingStatusInDB(updatedBooking);
       if (!success) {
@@ -52,7 +52,7 @@ const Modals = () => {
       const prevStatus = activeBooking.status;
       const updatedBooking = { ...activeBooking, status: 'rejected' };
       setBookings(prev => prev.map(item => item.id === activeBooking.id ? updatedBooking : item));
-      addLog('notify-reject', `[ВІДХИЛЕНО]\nКому: ${activeBooking.email}\nКому: horovod.info@gmail.com\nЗапит від "${activeBooking.userName}" (тип: ${activeBooking.type}) на ${activeBooking.date} о ${activeBooking.startTime}-${activeBooking.endTime} ВІДХИЛЕНО.`, 'rejected', 'Відхилено', `Запит від <strong>${activeBooking.userName}</strong> (тип: ${activeBooking.type}) на <strong>${activeBooking.date}</strong> о <strong>${activeBooking.startTime}-${activeBooking.endTime}</strong> відхилено.`, activeBooking.id);
+      addLog('notify-reject', `[ВІДХИЛЕНО]\nКому: ${activeBooking.email}\nКому: julya.newfold@gmail.com\nЗапит від "${activeBooking.userName}" (тип: ${activeBooking.type}) на ${activeBooking.date} о ${activeBooking.startTime}-${activeBooking.endTime} ВІДХИЛЕНО.`, 'rejected', 'Відхилено', `Запит від <strong>${activeBooking.userName}</strong> (тип: ${activeBooking.type}) на <strong>${activeBooking.date}</strong> о <strong>${activeBooking.startTime}-${activeBooking.endTime}</strong> відхилено.`, activeBooking.id);
       await saveData('logs_only');
       const { success } = await updateBookingStatusInDB(updatedBooking);
       if (!success) {
@@ -70,7 +70,7 @@ const Modals = () => {
       const prevStatus = activeBooking.status;
       const updatedBooking = { ...activeBooking, status: 'cancelled', cancelReason: 'Відкликано клієнтом до підтвердження' };
       setBookings(prev => prev.map(item => item.id === activeBooking.id ? updatedBooking : item));
-      addLog('cancel', `[ВІДКЛИКАНО]\nКому: ${activeBooking.email}\nКому: horovod.info@gmail.com\nЗапит від "${activeBooking.userName}" (тип: ${activeBooking.type}) на ${activeBooking.date} о ${activeBooking.startTime}-${activeBooking.endTime} відкликано клієнтом.`, 'cancelled', 'Відкликано', `Запит від <strong>${activeBooking.userName}</strong> (тип: ${activeBooking.type}) на <strong>${activeBooking.date}</strong> о <strong>${activeBooking.startTime}-${activeBooking.endTime}</strong> відкликано.`, activeBooking.id);
+      addLog('cancel', `[ВІДКЛИКАНО]\nКому: ${activeBooking.email}\nКому: julya.newfold@gmail.com\nЗапит від "${activeBooking.userName}" (тип: ${activeBooking.type}) на ${activeBooking.date} о ${activeBooking.startTime}-${activeBooking.endTime} відкликано клієнтом.`, 'cancelled', 'Відкликано', `Запит від <strong>${activeBooking.userName}</strong> (тип: ${activeBooking.type}) на <strong>${activeBooking.date}</strong> о <strong>${activeBooking.startTime}-${activeBooking.endTime}</strong> відкликано.`, activeBooking.id);
       await saveData('logs_only');
       const { success } = await updateBookingStatusInDB(updatedBooking);
       if (!success) {
@@ -93,7 +93,7 @@ const Modals = () => {
       setBookings(prev => prev.map(item => item.id === activeBooking.id ? updatedBooking : item));
 
       if (role === 'client') {
-          addLog('notify-reject', `[СКАСОВАНО РЕЗИДЕНТОМ]\nКому: horovod.info@gmail.com\nРезидент "${activeBooking.userName}" скасував бронювання на ${activeBooking.date} (${activeBooking.startTime}-${activeBooking.endTime}).\nПричина: "${reason}"`, 'cancelled', 'Скасовано', `Резидент <strong>${activeBooking.userName}</strong> скасував бронювання на <strong>${activeBooking.date}</strong> о <strong>${activeBooking.startTime}-${activeBooking.endTime}</strong>.<br>Причина: <em>"${reason}"</em>`, activeBooking.id);
+          addLog('notify-reject', `[СКАСОВАНО РЕЗИДЕНТОМ]\nКому: julya.newfold@gmail.com\nРезидент "${activeBooking.userName}" скасував бронювання на ${activeBooking.date} (${activeBooking.startTime}-${activeBooking.endTime}).\nПричина: "${reason}"`, 'cancelled', 'Скасовано', `Резидент <strong>${activeBooking.userName}</strong> скасував бронювання на <strong>${activeBooking.date}</strong> о <strong>${activeBooking.startTime}-${activeBooking.endTime}</strong>.<br>Причина: <em>"${reason}"</em>`, activeBooking.id);
       } else {
           addLog('notify-reject', `[СКАСОВАНО ОРГАНІЗАТОРОМ]\nКому: ${activeBooking.email}\nОрганізатори скасували ваше бронювання на ${activeBooking.date} (${activeBooking.startTime}-${activeBooking.endTime}).\nПричина: "${reason}"`, 'cancelled', 'Скасовано', `Організатори скасували бронювання для <strong>${activeBooking.userName}</strong> на <strong>${activeBooking.date}</strong> о <strong>${activeBooking.startTime}-${activeBooking.endTime}</strong>.<br>Причина: <em>"${reason}"</em>`, activeBooking.id);
       }
@@ -139,7 +139,7 @@ const Modals = () => {
       const catLabel = categoryLabels[issueData.category] || issueData.category;
       addLog(
           'issue-reported',
-          `Кому: horovod.info@gmail.com\n[НЕПОЛАДКА] ${issueData.title}: ${issueData.description}`,
+          `Кому: julya.newfold@gmail.com\n[НЕПОЛАДКА] ${issueData.title}: ${issueData.description}`,
           'rejected',
           'Неполадка',
           `Повідомлено про несправність: [${catLabel.toUpperCase()}] <strong>"${issueData.title}"</strong> (${issueData.description}) від <strong>${userEmail || 'Гість'}</strong>.`,
@@ -173,7 +173,7 @@ const Modals = () => {
               console.error("Login API error:", error);
               showToast(error.message || 'Помилка входу', 'error');
           } else if (data && data.user) {
-              const isAdmin = data.user.isAdmin || em === 'horovod.info@gmail.com';
+              const isAdmin = data.user.isAdmin || em === 'julya.newfold@gmail.com';
               localStorage.setItem('user_logged_in', 'true');
               localStorage.setItem('admin_logged_in', isAdmin ? 'true' : 'false');
               localStorage.setItem('user_email', em);
